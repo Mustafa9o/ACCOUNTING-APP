@@ -247,6 +247,21 @@ body {
     background-color: var(--secondary-color);
 }
 
+.btn-icon {
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: var(--transition);
+}
+
+.btn-icon:hover {
+    background-color: #f8f9fa;
+    color: var(--primary-color);
+}
+
 /* Cards */
 .card {
     background-color: white;
