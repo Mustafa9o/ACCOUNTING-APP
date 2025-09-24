@@ -3,15 +3,22 @@ const SUPABASE_URL = 'https://gmdjwwtlfjoiejsaqgdr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdtZGp3d3RsZmpvaWVqc2FxZ2RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3MTA0MTgsImV4cCI6MjA3NDI4NjQxOH0.LcCQYXohWd8w8RDJ0NhzJLjHf3kg64g8iFuDgL1YTjE';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 // DOM elements
-const sections = document.querySelectorAll('section');
-const navButtons = document.querySelectorAll('nav button');
+const navItems = document.querySelectorAll('.nav-item');
 const loginBtn = document.getElementById('login-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const userName = document.getElementById('user-name');
 const userRole = document.getElementById('user-role');
 const userInfo = document.getElementById('user-info');
 const adminOnlyElements = document.querySelectorAll('.admin-only');
+const menuToggle = document.querySelector('.menu-toggle');
+const sidebar = document.querySelector('.sidebar');
+const pageTitle = document.getElementById('page-title');
+const currentDateEl = document.getElementById('current-date');
+const currentTimeEl = document.getElementById('current-time');
 
 // Auth state
 let currentUser = null;
@@ -19,6 +26,7 @@ let userRole = null;
 let taxRate = 10; // Default tax rate
 let lowStockThreshold = 10; // Default low stock threshold
 let salesChart = null;
+let productsChart = null;
 let reportChart = null;
 
 // Initialize app
@@ -47,16 +55,28 @@ async function init() {
             if (setting.key === 'low_stock_threshold') lowStockThreshold = parseInt(setting.value);
         });
         
-        document.getElementById('tax-rate-display').textContent = `${taxRate}%`;
+        document.getElementById('tax-rate-display').textContent = `${taxRate}`;
     }
     
     updateAuthUI();
+    updateDateTime();
+    
+    // Update time every second
+    setInterval(updateDateTime, 1000);
+    
     if (currentUser) {
         showSection('dashboard');
         loadDashboard();
     } else {
         showSection('login');
     }
+}
+
+// Update date and time
+function updateDateTime() {
+    const now = new Date();
+    currentDateEl.textContent = now.toLocaleDateString();
+    currentTimeEl.textContent = now.toLocaleTimeString();
 }
 
 // Authentication
@@ -86,24 +106,29 @@ function updateAuthUI() {
         
         // Show/hide admin-only elements
         adminOnlyElements.forEach(el => {
-            el.style.display = userRole === 'admin' ? 'block' : 'none';
+            el.style.display = userRole === 'admin' ? 'flex' : 'none';
         });
     } else {
         userInfo.classList.add('hidden');
-        loginBtn.style.display = 'block';
+        loginBtn.style.display = 'flex';
         logoutBtn.style.display = 'none';
     }
 }
 
 // Navigation
-navButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        const section = button.dataset.section;
+navItems.forEach(item => {
+    item.addEventListener('click', (e) => {
+        e.preventDefault();
+        const section = item.dataset.section;
         if (section === 'settings' && userRole !== 'admin') {
             alert('You do not have permission to access settings');
             return;
         }
         showSection(section);
+        
+        // Update active nav item
+        navItems.forEach(nav => nav.classList.remove('active'));
+        item.classList.add('active');
         
         // Load section data
         switch(section) {
@@ -114,9 +139,6 @@ navButtons.forEach(button => {
                 loadProducts();
                 break;
             case 'sales':
-                loadProductsForSale();
-                loadCustomersForSale();
-                loadDiscountsForSale();
                 loadSales();
                 break;
             case 'expenses':
@@ -126,7 +148,7 @@ navButtons.forEach(button => {
                 loadCustomers();
                 break;
             case 'reports':
-                initReportChart();
+                loadReports();
                 break;
             case 'settings':
                 if (userRole === 'admin') {
@@ -139,21 +161,38 @@ navButtons.forEach(button => {
     });
 });
 
+// Menu toggle for mobile
+menuToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('active');
+});
+
 function showSection(sectionName) {
-    sections.forEach(section => {
+    // Hide all sections
+    document.querySelectorAll('.content-section').forEach(section => {
         section.classList.add('hidden');
     });
     
+    // Show selected section
     if (sectionName === 'login') {
         // Show login prompt
-        document.querySelector('main').innerHTML = `
-            <section>
-                <h2>Please Login</h2>
-                <p>You need to login to access the accounting system</p>
+        document.querySelector('.main-content').innerHTML = `
+            <section class="content-section">
+                <div class="card">
+                    <div class="card-content" style="text-align: center; padding: 50px;">
+                        <i class="fas fa-lock" style="font-size: 3rem; color: var(--primary-color); margin-bottom: 20px;"></i>
+                        <h2>Please Login</h2>
+                        <p>You need to login to access the accounting system</p>
+                        <button class="btn-primary" style="margin-top: 20px;" onclick="document.getElementById('login-btn').click()">
+                            <i class="fas fa-sign-in-alt"></i>
+                            Login with Google
+                        </button>
+                    </div>
+                </div>
             </section>
         `;
     } else {
         document.getElementById(sectionName).classList.remove('hidden');
+        pageTitle.textContent = sectionName.charAt(0).toUpperCase() + sectionName.slice(1);
     }
 }
 
@@ -164,21 +203,22 @@ async function loadDashboard() {
         .from('products')
         .select('id, name, stock, low_stock_threshold');
     
-    const alertsContainer = document.getElementById('inventory-alerts');
     const alertsList = document.getElementById('alerts-list');
+    const alertCount = document.getElementById('alert-count');
     
     const alerts = lowStockProducts.filter(p => p.stock < p.low_stock_threshold);
     
     if (alerts.length > 0) {
-        alertsContainer.classList.remove('hidden');
+        alertCount.textContent = alerts.length;
         alertsList.innerHTML = alerts.map(product => `
             <div class="alert-item">
                 <span class="alert-name">${product.name}</span>
-                <span class="alert-stock">Only ${product.stock} left in stock</span>
+                <span class="alert-stock">Only ${product.stock} left</span>
             </div>
         `).join('');
     } else {
-        alertsContainer.classList.add('hidden');
+        alertCount.textContent = '0';
+        alertsList.innerHTML = '<div class="alert-item">No inventory alerts</div>';
     }
     
     // Load sales data
@@ -206,8 +246,105 @@ async function loadDashboard() {
     document.getElementById('net-profit').textContent = `$${netProfit.toFixed(2)}`;
     document.getElementById('tax-collected').textContent = `$${totalTax.toFixed(2)}`;
     
-    // Load sales chart
+    // Load recent activity
+    loadRecentActivity();
+    
+    // Load charts
     loadSalesChart();
+    loadProductsChart();
+}
+
+async function loadRecentActivity() {
+    // Get recent sales
+    const { data: recentSales } = await supabase
+        .from('sales')
+        .select(`
+            sale_date,
+            total,
+            products(name)
+        `)
+        .order('sale_date', { ascending: false })
+        .limit(3);
+    
+    // Get recent expenses
+    const { data: recentExpenses } = await supabase
+        .from('expenses')
+        .select('expense_date, amount, description')
+        .order('expense_date', { ascending: false })
+        .limit(2);
+    
+    // Get recent products
+    const { data: recentProducts } = await supabase
+        .from('products')
+        .select('created_at, name')
+        .order('created_at', { ascending: false })
+        .limit(1);
+    
+    // Combine and sort all activities
+    const activities = [
+        ...recentSales.map(sale => ({
+            type: 'sale',
+            title: `Sale: ${sale.products.name}`,
+            time: new Date(sale.sale_date),
+            amount: sale.total
+        })),
+        ...recentExpenses.map(expense => ({
+            type: 'expense',
+            title: `Expense: ${expense.description}`,
+            time: new Date(expense.expense_date),
+            amount: expense.amount
+        })),
+        ...recentProducts.map(product => ({
+            type: 'product',
+            title: `New Product: ${product.name}`,
+            time: new Date(product.created_at)
+        }))
+    ];
+    
+    // Sort by time (most recent first)
+    activities.sort((a, b) => b.time - a.time);
+    
+    // Display activities
+    const activityList = document.getElementById('recent-activity');
+    activityList.innerHTML = activities.map(activity => {
+        const timeAgo = getTimeAgo(activity.time);
+        const iconClass = activity.type === 'sale' ? 'fa-shopping-cart' : 
+                         activity.type === 'expense' ? 'fa-receipt' : 'fa-box';
+        const amountText = activity.amount ? `$${activity.amount.toFixed(2)}` : '';
+        
+        return `
+            <div class="activity-item">
+                <div class="activity-icon ${activity.type}">
+                    <i class="fas ${iconClass}"></i>
+                </div>
+                <div class="activity-details">
+                    <div class="activity-title">${activity.title} ${amountText}</div>
+                    <div class="activity-time">${timeAgo}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function getTimeAgo(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + " years ago";
+    
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + " months ago";
+    
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + " days ago";
+    
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + " hours ago";
+    
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + " minutes ago";
+    
+    return "Just now";
 }
 
 async function loadSalesChart() {
@@ -242,22 +379,150 @@ async function loadSalesChart() {
             datasets: [{
                 label: 'Daily Sales',
                 data: data,
-                backgroundColor: 'rgba(52, 152, 219, 0.2)',
-                borderColor: 'rgba(52, 152, 219, 1)',
+                backgroundColor: 'rgba(67, 97, 238, 0.2)',
+                borderColor: 'rgba(67, 97, 238, 1)',
                 borderWidth: 2,
-                tension: 0.3
+                tension: 0.3,
+                pointBackgroundColor: 'rgba(67, 97, 238, 1)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgba(67, 97, 238, 1)'
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: 'rgba(67, 97, 238, 1)',
+                    borderWidth: 1,
+                    cornerRadius: 4,
+                    displayColors: false,
+                    callbacks: {
+                        label: function(context) {
+                            return `Sales: $${context.parsed.y.toFixed(2)}`;
+                        }
+                    }
+                }
+            },
             scales: {
                 y: {
                     beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
                     ticks: {
                         callback: function(value) {
-                            return '$' + value.toFixed(2);
+                            return '$' + value.toFixed(0);
                         }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+async function loadProductsChart() {
+    const { data: salesData } = await supabase
+        .from('sales')
+        .select(`
+            quantity,
+            products(name)
+        `);
+    
+    // Group sales by product
+    const salesByProduct = {};
+    salesData.forEach(sale => {
+        if (!salesByProduct[sale.products.name]) {
+            salesByProduct[sale.products.name] = 0;
+        }
+        salesByProduct[sale.products.name] += sale.quantity;
+    });
+    
+    // Sort by quantity sold (top 5)
+    const sortedProducts = Object.entries(salesByProduct)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+    
+    const labels = sortedProducts.map(p => p[0]);
+    const data = sortedProducts.map(p => p[1]);
+    
+    const ctx = document.getElementById('products-chart').getContext('2d');
+    
+    if (productsChart) {
+        productsChart.destroy();
+    }
+    
+    productsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Units Sold',
+                data: data,
+                backgroundColor: [
+                    'rgba(67, 97, 238, 0.8)',
+                    'rgba(76, 201, 240, 0.8)',
+                    'rgba(255, 193, 7, 0.8)',
+                    'rgba(40, 167, 69, 0.8)',
+                    'rgba(220, 53, 69, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(67, 97, 238, 1)',
+                    'rgba(76, 201, 240, 1)',
+                    'rgba(255, 193, 7, 1)',
+                    'rgba(40, 167, 69, 1)',
+                    'rgba(220, 53, 69, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: 'rgba(67, 97, 238, 1)',
+                    borderWidth: 1,
+                    cornerRadius: 4,
+                    displayColors: false,
+                    callbacks: {
+                        label: function(context) {
+                            return `Units: ${context.parsed.y}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
+                    ticks: {
+                        precision: 0
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
                     }
                 }
             }
@@ -276,40 +541,47 @@ async function loadProducts() {
         return;
     }
     
-    const productsList = document.getElementById('products-list');
-    productsList.innerHTML = `
-        <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Price</th>
-                    <th>Stock</th>
-                    <th>Low Stock Threshold</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${data.map(product => {
-                    const stockStatus = product.stock < product.low_stock_threshold 
-                        ? '<span class="low-stock">Low Stock</span>' 
-                        : '<span class="in-stock">In Stock</span>';
-                    
-                    return `
-                        <tr>
-                            <td>${product.name}</td>
-                            <td>$${parseFloat(product.price).toFixed(2)}</td>
-                            <td>${product.stock}</td>
-                            <td>${product.low_stock_threshold}</td>
-                            <td>${stockStatus}</td>
-                        </tr>
-                    `;
-                }).join('')}
-            </tbody>
-        </table>
-    `;
+    const productsTableBody = document.getElementById('products-table-body');
+    productsTableBody.innerHTML = data.map(product => {
+        const stockStatus = product.stock < product.low_stock_threshold 
+            ? '<span class="status-badge low-stock">Low Stock</span>' 
+            : '<span class="status-badge in-stock">In Stock</span>';
+        
+        return `
+            <tr>
+                <td>${product.name}</td>
+                <td>$${parseFloat(product.price).toFixed(2)}</td>
+                <td>${product.stock}</td>
+                <td>${product.low_stock_threshold}</td>
+                <td>${stockStatus}</td>
+                <td>
+                    <button class="btn-icon" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-icon" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
-document.getElementById('product-form').addEventListener('submit', async (e) => {
+// Product Modal
+const productModal = document.getElementById('product-modal');
+const addProductBtn = document.getElementById('add-product-btn');
+const closeProductModal = productModal.querySelector('.close');
+const productForm = document.getElementById('product-form');
+
+addProductBtn.addEventListener('click', () => {
+    productModal.style.display = 'block';
+});
+
+closeProductModal.addEventListener('click', () => {
+    productModal.style.display = 'none';
+});
+
+productForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const name = document.getElementById('product-name').value;
@@ -326,11 +598,74 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
         return;
     }
     
-    e.target.reset();
+    productModal.style.display = 'none';
+    productForm.reset();
     loadProducts();
 });
 
 // Sales Functions
+async function loadSales() {
+    const { data, error } = await supabase
+        .from('sales')
+        .select(`
+            id,
+            quantity,
+            total,
+            sale_date,
+            products(name),
+            customers(name)
+        `)
+        .order('sale_date', { ascending: false });
+    
+    if (error) {
+        console.error('Error loading sales:', error.message);
+        return;
+    }
+    
+    const salesTableBody = document.getElementById('sales-table-body');
+    salesTableBody.innerHTML = data.map(sale => `
+        <tr>
+            <td>#${sale.id}</td>
+            <td>${sale.products.name}</td>
+            <td>${sale.customers.name}</td>
+            <td>${sale.quantity}</td>
+            <td>$${parseFloat(sale.total).toFixed(2)}</td>
+            <td>${new Date(sale.sale_date).toLocaleDateString()}</td>
+            <td>
+                <button class="btn-icon print-sale-btn" data-id="${sale.id}" title="Print Receipt">
+                    <i class="fas fa-print"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+    
+    // Add event listeners to print buttons
+    document.querySelectorAll('.print-sale-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const saleId = this.dataset.id;
+            printReceipt(saleId);
+        });
+    });
+}
+
+// Sale Modal
+const saleModal = document.getElementById('sale-modal');
+const newSaleBtn = document.getElementById('new-sale-btn');
+const closeSaleModal = saleModal.querySelector('.close');
+const saleForm = document.getElementById('sale-form');
+
+newSaleBtn.addEventListener('click', async () => {
+    // Load products and customers for the sale form
+    await loadProductsForSale();
+    await loadCustomersForSale();
+    await loadDiscountsForSale();
+    saleModal.style.display = 'block';
+});
+
+closeSaleModal.addEventListener('click', () => {
+    saleModal.style.display = 'none';
+});
+
 async function loadProductsForSale() {
     const { data, error } = await supabase
         .from('products')
@@ -401,10 +736,10 @@ async function calculateSaleTotal() {
     const discountId = document.getElementById('sale-discount').value;
     
     if (!productId || !quantity) {
-        document.getElementById('subtotal').textContent = '0.00';
-        document.getElementById('discount-amount').textContent = '0.00';
-        document.getElementById('tax-amount').textContent = '0.00';
-        document.getElementById('total-amount').textContent = '0.00';
+        document.getElementById('subtotal').textContent = '$0.00';
+        document.getElementById('discount-amount').textContent = '$0.00';
+        document.getElementById('tax-amount').textContent = '$0.00';
+        document.getElementById('total-amount').textContent = '$0.00';
         return;
     }
     
@@ -447,73 +782,13 @@ async function calculateSaleTotal() {
     const taxAmount = afterDiscount * (taxRate / 100);
     const total = afterDiscount + taxAmount;
     
-    document.getElementById('subtotal').textContent = subtotal.toFixed(2);
-    document.getElementById('discount-amount').textContent = discountAmount.toFixed(2);
-    document.getElementById('tax-amount').textContent = taxAmount.toFixed(2);
-    document.getElementById('total-amount').textContent = total.toFixed(2);
+    document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
+    document.getElementById('discount-amount').textContent = `$${discountAmount.toFixed(2)}`;
+    document.getElementById('tax-amount').textContent = `$${taxAmount.toFixed(2)}`;
+    document.getElementById('total-amount').textContent = `$${total.toFixed(2)}`;
 }
 
-async function loadSales() {
-    const { data, error } = await supabase
-        .from('sales')
-        .select(`
-            id,
-            quantity,
-            total,
-            tax_amount,
-            sale_date,
-            products(name),
-            customers(name)
-        `)
-        .order('sale_date', { ascending: false });
-    
-    if (error) {
-        console.error('Error loading sales:', error.message);
-        return;
-    }
-    
-    const salesList = document.getElementById('sales-list');
-    salesList.innerHTML = `
-        <table>
-            <thead>
-                <tr>
-                    <th>Product</th>
-                    <th>Customer</th>
-                    <th>Quantity</th>
-                    <th>Total</th>
-                    <th>Tax</th>
-                    <th>Date</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${data.map(sale => `
-                    <tr>
-                        <td>${sale.products.name}</td>
-                        <td>${sale.customers.name}</td>
-                        <td>${sale.quantity}</td>
-                        <td>$${parseFloat(sale.total).toFixed(2)}</td>
-                        <td>$${parseFloat(sale.tax_amount || 0).toFixed(2)}</td>
-                        <td>${new Date(sale.sale_date).toLocaleDateString()}</td>
-                        <td>
-                            <button class="print-sale-btn" data-id="${sale.id}">Print Receipt</button>
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    `;
-    
-    // Add event listeners to print buttons
-    document.querySelectorAll('.print-sale-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const saleId = this.dataset.id;
-            printReceipt(saleId);
-        });
-    });
-}
-
-document.getElementById('sale-form').addEventListener('submit', async (e) => {
+saleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const productId = document.getElementById('sale-product').value;
@@ -591,8 +866,8 @@ document.getElementById('sale-form').addEventListener('submit', async (e) => {
         return;
     }
     
-    e.target.reset();
-    loadProductsForSale();
+    saleModal.style.display = 'none';
+    saleForm.reset();
     loadSales();
     
     // Show receipt
@@ -619,92 +894,6 @@ document.getElementById('sale-form').addEventListener('submit', async (e) => {
     }
 });
 
-// Receipt Functions
-function showReceipt(sale) {
-    const modal = document.getElementById('receipt-modal');
-    const receiptContent = document.getElementById('receipt-content');
-    
-    receiptContent.innerHTML = `
-        <div class="receipt-header">
-            <h2>Store Receipt</h2>
-            <p>Date: ${new Date(sale.sale_date).toLocaleString()}</p>
-        </div>
-        <div class="receipt-details">
-            <div class="receipt-row">
-                <span>Product:</span>
-                <span>${sale.products.name}</span>
-            </div>
-            <div class="receipt-row">
-                <span>Price:</span>
-                <span>$${parseFloat(sale.products.price).toFixed(2)}</span>
-            </div>
-            <div class="receipt-row">
-                <span>Quantity:</span>
-                <span>${sale.quantity}</span>
-            </div>
-            <div class="receipt-row">
-                <span>Subtotal:</span>
-                <span>$${(parseFloat(sale.total) - parseFloat(sale.tax_amount)).toFixed(2)}</span>
-            </div>
-            <div class="receipt-row">
-                <span>Tax (${taxRate}%):</span>
-                <span>$${parseFloat(sale.tax_amount).toFixed(2)}</span>
-            </div>
-            <div class="receipt-row receipt-total">
-                <span>Total:</span>
-                <span>$${parseFloat(sale.total).toFixed(2)}</span>
-            </div>
-        </div>
-        <div class="receipt-customer">
-            <h3>Customer Information</h3>
-            <p>Name: ${sale.customers.name}</p>
-            ${sale.customers.email ? `<p>Email: ${sale.customers.email}</p>` : ''}
-            ${sale.customers.phone ? `<p>Phone: ${sale.customers.phone}</p>` : ''}
-        </div>
-    `;
-    
-    modal.style.display = 'block';
-}
-
-function printReceipt(saleId) {
-    supabase
-        .from('sales')
-        .select(`
-            id,
-            quantity,
-            total,
-            tax_amount,
-            sale_date,
-            products(name, price),
-            customers(name, email, phone)
-        `)
-        .eq('id', saleId)
-        .single()
-        .then(({ data, error }) => {
-            if (error) {
-                console.error('Error fetching sale for receipt:', error.message);
-                return;
-            }
-            
-            showReceipt(data);
-        });
-}
-
-document.getElementById('print-receipt').addEventListener('click', () => {
-    window.print();
-});
-
-document.querySelector('.close').addEventListener('click', () => {
-    document.getElementById('receipt-modal').style.display = 'none';
-});
-
-window.addEventListener('click', (e) => {
-    const modal = document.getElementById('receipt-modal');
-    if (e.target === modal) {
-        modal.style.display = 'none';
-    }
-});
-
 // Expenses Functions
 async function loadExpenses() {
     const { data, error } = await supabase
@@ -717,32 +906,40 @@ async function loadExpenses() {
         return;
     }
     
-    const expensesList = document.getElementById('expenses-list');
-    expensesList.innerHTML = `
-        <table>
-            <thead>
-                <tr>
-                    <th>Description</th>
-                    <th>Amount</th>
-                    <th>Category</th>
-                    <th>Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${data.map(expense => `
-                    <tr>
-                        <td>${expense.description}</td>
-                        <td>$${parseFloat(expense.amount).toFixed(2)}</td>
-                        <td>${expense.category}</td>
-                        <td>${new Date(expense.expense_date).toLocaleDateString()}</td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    `;
+    const expensesTableBody = document.getElementById('expenses-table-body');
+    expensesTableBody.innerHTML = data.map(expense => `
+        <tr>
+            <td>${expense.description}</td>
+            <td>$${parseFloat(expense.amount).toFixed(2)}</td>
+            <td>${expense.category}</td>
+            <td>${new Date(expense.expense_date).toLocaleDateString()}</td>
+            <td>
+                <button class="btn-icon" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-icon" title="Delete">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
 }
 
-document.getElementById('expense-form').addEventListener('submit', async (e) => {
+// Expense Modal
+const expenseModal = document.getElementById('expense-modal');
+const addExpenseBtn = document.getElementById('add-expense-btn');
+const closeExpenseModal = expenseModal.querySelector('.close');
+const expenseForm = document.getElementById('expense-form');
+
+addExpenseBtn.addEventListener('click', () => {
+    expenseModal.style.display = 'block';
+});
+
+closeExpenseModal.addEventListener('click', () => {
+    expenseModal.style.display = 'none';
+});
+
+expenseForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const description = document.getElementById('expense-desc').value;
@@ -758,7 +955,8 @@ document.getElementById('expense-form').addEventListener('submit', async (e) => 
         return;
     }
     
-    e.target.reset();
+    expenseModal.style.display = 'none';
+    expenseForm.reset();
     loadExpenses();
 });
 
@@ -774,32 +972,56 @@ async function loadCustomers() {
         return;
     }
     
-    const customersList = document.getElementById('customers-list');
-    customersList.innerHTML = `
-        <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Address</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${data.map(customer => `
-                    <tr>
-                        <td>${customer.name}</td>
-                        <td>${customer.email || '-'}</td>
-                        <td>${customer.phone || '-'}</td>
-                        <td>${customer.address || '-'}</td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    `;
+    // Calculate total purchases for each customer
+    const customerIds = data.map(c => c.id);
+    const { data: salesData } = await supabase
+        .from('sales')
+        .select('customer_id, total')
+        .in('customer_id', customerIds);
+    
+    const purchasesByCustomer = {};
+    salesData.forEach(sale => {
+        if (!purchasesByCustomer[sale.customer_id]) {
+            purchasesByCustomer[sale.customer_id] = 0;
+        }
+        purchasesByCustomer[sale.customer_id] += parseFloat(sale.total);
+    });
+    
+    const customersTableBody = document.getElementById('customers-table-body');
+    customersTableBody.innerHTML = data.map(customer => `
+        <tr>
+            <td>${customer.name}</td>
+            <td>${customer.email || '-'}</td>
+            <td>${customer.phone || '-'}</td>
+            <td>${customer.address || '-'}</td>
+            <td>$${(purchasesByCustomer[customer.id] || 0).toFixed(2)}</td>
+            <td>
+                <button class="btn-icon" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-icon" title="Delete">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
 }
 
-document.getElementById('customer-form').addEventListener('submit', async (e) => {
+// Customer Modal
+const customerModal = document.getElementById('customer-modal');
+const addCustomerBtn = document.getElementById('add-customer-btn');
+const closeCustomerModal = customerModal.querySelector('.close');
+const customerForm = document.getElementById('customer-form');
+
+addCustomerBtn.addEventListener('click', () => {
+    customerModal.style.display = 'block';
+});
+
+closeCustomerModal.addEventListener('click', () => {
+    customerModal.style.display = 'none';
+});
+
+customerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const name = document.getElementById('customer-name').value;
@@ -816,11 +1038,42 @@ document.getElementById('customer-form').addEventListener('submit', async (e) =>
         return;
     }
     
-    e.target.reset();
+    customerModal.style.display = 'none';
+    customerForm.reset();
     loadCustomers();
 });
 
 // Reports Functions
+async function loadReports() {
+    // Load quick stats
+    const { data: products } = await supabase
+        .from('products')
+        .select('id, stock, low_stock_threshold');
+    
+    const { data: customers } = await supabase
+        .from('customers')
+        .select('id');
+    
+    const { data: sales } = await supabase
+        .from('sales')
+        .select('total');
+    
+    const totalProducts = products.length;
+    const lowStockItems = products.filter(p => p.stock < p.low_stock_threshold).length;
+    const totalCustomers = customers.length;
+    const avgSale = sales.length > 0 
+        ? sales.reduce((sum, sale) => sum + parseFloat(sale.total), 0) / sales.length 
+        : 0;
+    
+    document.getElementById('quick-total-products').textContent = totalProducts;
+    document.getElementById('quick-low-stock').textContent = lowStockItems;
+    document.getElementById('quick-total-customers').textContent = totalCustomers;
+    document.getElementById('quick-avg-sale').textContent = `$${avgSale.toFixed(2)}`;
+    
+    // Initialize report chart
+    initReportChart();
+}
+
 function initReportChart() {
     const ctx = document.getElementById('report-chart').getContext('2d');
     
@@ -835,21 +1088,48 @@ function initReportChart() {
             datasets: [{
                 label: 'Report Data',
                 data: [],
-                backgroundColor: 'rgba(52, 152, 219, 0.2)',
-                borderColor: 'rgba(52, 152, 219, 1)',
+                backgroundColor: 'rgba(67, 97, 238, 0.6)',
+                borderColor: 'rgba(67, 97, 238, 1)',
                 borderWidth: 1
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: 'rgba(67, 97, 238, 1)',
+                    borderWidth: 1,
+                    cornerRadius: 4,
+                    displayColors: false,
+                    callbacks: {
+                        label: function(context) {
+                            return `Amount: $${context.parsed.y.toFixed(2)}`;
+                        }
+                    }
+                }
+            },
             scales: {
                 y: {
                     beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
                     ticks: {
                         callback: function(value) {
-                            return '$' + value.toFixed(2);
+                            return '$' + value.toFixed(0);
                         }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
                     }
                 }
             }
@@ -937,12 +1217,12 @@ document.getElementById('generate-report').addEventListener('click', async () =>
             break;
             
         case 'inventory':
-            const { data: products } = await supabase
+            const { data: inventoryProducts } = await supabase
                 .from('products')
                 .select('name, stock, price');
             
-            labels = products.map(p => p.name);
-            data = products.map(p => p.stock * parseFloat(p.price));
+            labels = inventoryProducts.map(p => p.name);
+            data = inventoryProducts.map(p => p.stock * parseFloat(p.price));
             title = 'Inventory Value';
             break;
             
@@ -999,6 +1279,9 @@ document.getElementById('generate-report').addEventListener('click', async () =>
     reportChart.data.datasets[0].label = title;
     reportChart.update();
     
+    // Update title
+    document.getElementById('report-title').textContent = title;
+    
     // Generate report table
     generateReportTable(reportType, labels, data);
 });
@@ -1006,7 +1289,7 @@ document.getElementById('generate-report').addEventListener('click', async () =>
 function generateReportTable(reportType, labels, data) {
     const reportTable = document.getElementById('report-table');
     
-    let tableHTML = `<h3>${reportChart.data.datasets[0].label}</h3><table>`;
+    let tableHTML = `<table class="data-table">`;
     
     if (reportType === 'profit-loss') {
         tableHTML += `
@@ -1084,7 +1367,7 @@ document.getElementById('tax-form').addEventListener('submit', async (e) => {
     }
     
     taxRate = newTaxRate;
-    document.getElementById('tax-rate-display').textContent = `${taxRate}%`;
+    document.getElementById('tax-rate-display').textContent = `${taxRate}`;
     alert('Tax rate updated successfully');
 });
 
@@ -1122,24 +1405,12 @@ async function loadUsers() {
     }
     
     const userList = document.getElementById('user-list');
-    userList.innerHTML = `
-        <table>
-            <thead>
-                <tr>
-                    <th>Email</th>
-                    <th>Role</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${users.map(user => `
-                    <tr>
-                        <td>${user.users.email}</td>
-                        <td>${user.role}</td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    `;
+    userList.innerHTML = users.map(user => `
+        <div class="user-list-item">
+            <span>${user.users.email}</span>
+            <span class="status-badge">${user.role}</span>
+        </div>
+    `).join('');
     
     const userSelect = document.getElementById('user-select');
     userSelect.innerHTML = '<option value="">Select User</option>';
@@ -1185,7 +1456,7 @@ async function loadDiscounts() {
     discountsList.innerHTML = data.map(discount => `
         <div class="discount-item">
             <span>${discount.name}</span>
-            <span class="discount-value ${discount.type === 'percentage' ? 'discount-percentage' : 'discount-fixed'}">
+            <span class="discount-value">
                 ${discount.type === 'percentage' ? `${discount.value}%` : `$${discount.value}`}
             </span>
         </div>
@@ -1210,6 +1481,88 @@ document.getElementById('discount-form').addEventListener('submit', async (e) =>
     
     e.target.reset();
     loadDiscounts();
+});
+
+// Receipt Functions
+function showReceipt(sale) {
+    const modal = document.getElementById('receipt-modal');
+    const receiptContent = document.getElementById('receipt-content');
+    
+    receiptContent.innerHTML = `
+        <div class="receipt-header">
+            <h2>Store Receipt</h2>
+            <p>Date: ${new Date(sale.sale_date).toLocaleString()}</p>
+        </div>
+        <div class="receipt-details">
+            <div class="receipt-row">
+                <span>Product:</span>
+                <span>${sale.products.name}</span>
+            </div>
+            <div class="receipt-row">
+                <span>Price:</span>
+                <span>$${parseFloat(sale.products.price).toFixed(2)}</span>
+            </div>
+            <div class="receipt-row">
+                <span>Quantity:</span>
+                <span>${sale.quantity}</span>
+            </div>
+            <div class="receipt-row">
+                <span>Subtotal:</span>
+                <span>$${(parseFloat(sale.total) - parseFloat(sale.tax_amount)).toFixed(2)}</span>
+            </div>
+            <div class="receipt-row">
+                <span>Tax (${taxRate}%):</span>
+                <span>$${parseFloat(sale.tax_amount).toFixed(2)}</span>
+            </div>
+            <div class="receipt-row receipt-total">
+                <span>Total:</span>
+                <span>$${parseFloat(sale.total).toFixed(2)}</span>
+            </div>
+        </div>
+        <div class="receipt-customer">
+            <h3>Customer Information</h3>
+            <p>Name: ${sale.customers.name}</p>
+            ${sale.customers.email ? `<p>Email: ${sale.customers.email}</p>` : ''}
+            ${sale.customers.phone ? `<p>Phone: ${sale.customers.phone}</p>` : ''}
+        </div>
+    `;
+    
+    modal.style.display = 'block';
+}
+
+function printReceipt(saleId) {
+    supabase
+        .from('sales')
+        .select(`
+            id,
+            quantity,
+            total,
+            tax_amount,
+            sale_date,
+            products(name, price),
+            customers(name, email, phone)
+        `)
+        .eq('id', saleId)
+        .single()
+        .then(({ data, error }) => {
+            if (error) {
+                console.error('Error fetching sale for receipt:', error.message);
+                return;
+            }
+            
+            showReceipt(data);
+        });
+}
+
+document.getElementById('print-receipt').addEventListener('click', () => {
+    window.print();
+});
+
+// Close modals when clicking outside
+window.addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal')) {
+        e.target.style.display = 'none';
+    }
 });
 
 // Initialize app when DOM is loaded
