@@ -3,102 +3,664 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Store Accounting System</title>
+    <title>Store Accounting Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Store Accounting System</h1>
-            <div id="auth-section">
-                <div id="user-info" class="hidden">
-                    <span id="user-name"></span>
-                    <span id="user-role"></span>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-store"></i>
+                    <span>StoreManager</span>
                 </div>
-                <button id="login-btn">Login</button>
-                <button id="logout-btn" style="display:none;">Logout</button>
             </div>
-        </header>
+            
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-section="dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-section="products">
+                    <i class="fas fa-box"></i>
+                    <span>Products</span>
+                </a>
+                <a href="#" class="nav-item" data-section="sales">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Sales</span>
+                </a>
+                <a href="#" class="nav-item" data-section="expenses">
+                    <i class="fas fa-receipt"></i>
+                    <span>Expenses</span>
+                </a>
+                <a href="#" class="nav-item" data-section="customers">
+                    <i class="fas fa-users"></i>
+                    <span>Customers</span>
+                </a>
+                <a href="#" class="nav-item" data-section="reports">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reports</span>
+                </a>
+                <a href="#" class="nav-item admin-only" data-section="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div id="user-info" class="user-profile hidden">
+                    <div class="user-avatar">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <div class="user-details">
+                        <div id="user-name" class="user-name"></div>
+                        <div id="user-role" class="user-role"></div>
+                    </div>
+                </div>
+                <button id="logout-btn" class="logout-btn hidden">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </button>
+                <button id="login-btn" class="login-btn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Login</span>
+                </button>
+            </div>
+        </aside>
 
-        <main>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <button class="menu-toggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 id="page-title">Dashboard</h1>
+                </div>
+                <div class="header-right">
+                    <div class="date-time">
+                        <span id="current-date"></span>
+                        <span id="current-time"></span>
+                    </div>
+                </div>
+            </header>
+
             <!-- Dashboard Section -->
-            <section id="dashboard" class="hidden">
-                <h2>Dashboard</h2>
-                <div id="inventory-alerts" class="alert-container hidden">
-                    <h3>Inventory Alerts</h3>
-                    <div id="alerts-list"></div>
-                </div>
+            <section id="dashboard" class="content-section">
+                <!-- Stats Overview -->
                 <div class="stats-grid">
-                    <div class="stat-card">
-                        <h3>Total Sales</h3>
-                        <p id="total-sales">$0.00</p>
+                    <div class="stat-card sales-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>Total Sales</h3>
+                            <p id="total-sales">$0.00</p>
+                            <div class="stat-change positive">
+                                <i class="fas fa-arrow-up"></i>
+                                <span>12.5%</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <h3>Total Expenses</h3>
-                        <p id="total-expenses">$0.00</p>
+                    
+                    <div class="stat-card expenses-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-receipt"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>Total Expenses</h3>
+                            <p id="total-expenses">$0.00</p>
+                            <div class="stat-change negative">
+                                <i class="fas fa-arrow-down"></i>
+                                <span>5.2%</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <h3>Net Profit</h3>
-                        <p id="net-profit">$0.00</p>
+                    
+                    <div class="stat-card profit-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>Net Profit</h3>
+                            <p id="net-profit">$0.00</p>
+                            <div class="stat-change positive">
+                                <i class="fas fa-arrow-up"></i>
+                                <span>8.7%</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <h3>Tax Collected</h3>
-                        <p id="tax-collected">$0.00</p>
+                    
+                    <div class="stat-card tax-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>Tax Collected</h3>
+                            <p id="tax-collected">$0.00</p>
+                            <div class="stat-change positive">
+                                <i class="fas fa-arrow-up"></i>
+                                <span>3.2%</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="chart-container">
-                    <canvas id="sales-chart"></canvas>
+
+                <!-- Alerts Section -->
+                <div class="dashboard-row">
+                    <div class="card alerts-card">
+                        <div class="card-header">
+                            <h3>Inventory Alerts</h3>
+                            <span class="badge" id="alert-count">0</span>
+                        </div>
+                        <div class="card-content">
+                            <div id="alerts-list" class="alerts-list"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="card recent-activity-card">
+                        <div class="card-header">
+                            <h3>Recent Activity</h3>
+                            <a href="#" class="view-all">View All</a>
+                        </div>
+                        <div class="card-content">
+                            <div id="recent-activity" class="activity-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="dashboard-row">
+                    <div class="card chart-card">
+                        <div class="card-header">
+                            <h3>Sales Overview</h3>
+                            <div class="chart-controls">
+                                <button class="chart-control-btn active" data-period="week">Week</button>
+                                <button class="chart-control-btn" data-period="month">Month</button>
+                                <button class="chart-control-btn" data-period="year">Year</button>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <div class="chart-container">
+                                <canvas id="sales-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card chart-card">
+                        <div class="card-header">
+                            <h3>Top Products</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="chart-container">
+                                <canvas id="products-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
             <!-- Products Section -->
-            <section id="products" class="hidden">
-                <h2>Products</h2>
-                <form id="product-form">
-                    <input type="text" id="product-name" placeholder="Product Name" required>
-                    <input type="number" id="product-price" placeholder="Price" step="0.01" required>
-                    <input type="number" id="product-stock" placeholder="Stock" required>
-                    <input type="number" id="product-threshold" placeholder="Low Stock Threshold" step="1" required>
-                    <button type="submit">Add Product</button>
-                </form>
-                <div id="products-list"></div>
+            <section id="products" class="content-section hidden">
+                <div class="section-header">
+                    <h2>Products Management</h2>
+                    <button class="btn-primary" id="add-product-btn">
+                        <i class="fas fa-plus"></i>
+                        Add Product
+                    </button>
+                </div>
+                
+                <div class="card">
+                    <div class="card-content">
+                        <div class="table-controls">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" placeholder="Search products...">
+                            </div>
+                            <div class="filter-controls">
+                                <select>
+                                    <option>All Categories</option>
+                                    <option>Electronics</option>
+                                    <option>Clothing</option>
+                                    <option>Food</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Product Name</th>
+                                        <th>Price</th>
+                                        <th>Stock</th>
+                                        <th>Threshold</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="products-table-body">
+                                    <!-- Products will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <!-- Sales Section -->
-            <section id="sales" class="hidden">
-                <h2>Sales</h2>
-                <form id="sale-form">
-                    <select id="sale-product" required></select>
-                    <select id="sale-customer" required>
-                        <option value="">Select Customer</option>
-                    </select>
-                    <input type="number" id="sale-quantity" placeholder="Quantity" min="1" required>
-                    <select id="sale-discount">
-                        <option value="">No Discount</option>
-                    </select>
-                    <div class="tax-info">
-                        <label>Tax Rate: <span id="tax-rate-display">10%</span></label>
-                        <div>
-                            <label>Subtotal: $<span id="subtotal">0.00</span></label>
-                            <label>Discount: $<span id="discount-amount">0.00</span></label>
-                            <label>Tax: $<span id="tax-amount">0.00</span></label>
-                            <label>Total: $<span id="total-amount">0.00</span></label>
+            <section id="sales" class="content-section hidden">
+                <div class="section-header">
+                    <h2>Sales Management</h2>
+                    <button class="btn-primary" id="new-sale-btn">
+                        <i class="fas fa-plus"></i>
+                        New Sale
+                    </button>
+                </div>
+                
+                <div class="card">
+                    <div class="card-content">
+                        <div class="table-controls">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" placeholder="Search sales...">
+                            </div>
+                            <div class="date-filter">
+                                <input type="date" id="sales-date-from">
+                                <span>to</span>
+                                <input type="date" id="sales-date-to">
+                            </div>
+                        </div>
+                        
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Product</th>
+                                        <th>Customer</th>
+                                        <th>Quantity</th>
+                                        <th>Total</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sales-table-body">
+                                    <!-- Sales will be loaded here -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                    <button type="submit">Record Sale</button>
-                </form>
-                <div id="sales-list"></div>
+                </div>
             </section>
 
             <!-- Expenses Section -->
-            <section id="expenses" class="hidden">
-                <h2>Expenses</h2>
-                <form id="expense-form">
-                    <input type="text" id="expense-desc" placeholder="Description" required>
-                    <input type="number" id="expense-amount" placeholder="Amount" step="0.01" required>
+            <section id="expenses" class="content-section hidden">
+                <div class="section-header">
+                    <h2>Expenses Management</h2>
+                    <button class="btn-primary" id="add-expense-btn">
+                        <i class="fas fa-plus"></i>
+                        Add Expense
+                    </button>
+                </div>
+                
+                <div class="card">
+                    <div class="card-content">
+                        <div class="table-controls">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" placeholder="Search expenses...">
+                            </div>
+                            <div class="filter-controls">
+                                <select id="expense-category-filter">
+                                    <option value="">All Categories</option>
+                                    <option value="rent">Rent</option>
+                                    <option value="utilities">Utilities</option>
+                                    <option value="supplies">Supplies</option>
+                                    <option value="marketing">Marketing</option>
+                                    <option value="payroll">Payroll</option>
+                                    <option value="insurance">Insurance</option>
+                                    <option value="maintenance">Maintenance</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Description</th>
+                                        <th>Amount</th>
+                                        <th>Category</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="expenses-table-body">
+                                    <!-- Expenses will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Customers Section -->
+            <section id="customers" class="content-section hidden">
+                <div class="section-header">
+                    <h2>Customers Management</h2>
+                    <button class="btn-primary" id="add-customer-btn">
+                        <i class="fas fa-plus"></i>
+                        Add Customer
+                    </button>
+                </div>
+                
+                <div class="card">
+                    <div class="card-content">
+                        <div class="table-controls">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" placeholder="Search customers...">
+                            </div>
+                        </div>
+                        
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Phone</th>
+                                        <th>Address</th>
+                                        <th>Total Purchases</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="customers-table-body">
+                                    <!-- Customers will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Reports Section -->
+            <section id="reports" class="content-section hidden">
+                <div class="section-header">
+                    <h2>Reports & Analytics</h2>
+                </div>
+                
+                <div class="dashboard-row">
+                    <div class="card report-controls-card">
+                        <div class="card-header">
+                            <h3>Generate Report</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="report-form">
+                                <div class="form-group">
+                                    <label>Report Type</label>
+                                    <select id="report-type">
+                                        <option value="sales">Sales Report</option>
+                                        <option value="expenses">Expenses Report</option>
+                                        <option value="profit-loss">Profit & Loss</option>
+                                        <option value="inventory">Inventory Report</option>
+                                        <option value="customers">Customer Report</option>
+                                        <option value="tax">Tax Report</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Date Range</label>
+                                    <div class="date-range">
+                                        <input type="date" id="report-start">
+                                        <span>to</span>
+                                        <input type="date" id="report-end">
+                                    </div>
+                                </div>
+                                <button id="generate-report" class="btn-primary">
+                                    <i class="fas fa-chart-bar"></i>
+                                    Generate Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card quick-stats-card">
+                        <div class="card-header">
+                            <h3>Quick Stats</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="quick-stats">
+                                <div class="quick-stat">
+                                    <div class="quick-stat-value" id="quick-total-products">0</div>
+                                    <div class="quick-stat-label">Total Products</div>
+                                </div>
+                                <div class="quick-stat">
+                                    <div class="quick-stat-value" id="quick-low-stock">0</div>
+                                    <div class="quick-stat-label">Low Stock Items</div>
+                                </div>
+                                <div class="quick-stat">
+                                    <div class="quick-stat-value" id="quick-total-customers">0</div>
+                                    <div class="quick-stat-label">Total Customers</div>
+                                </div>
+                                <div class="quick-stat">
+                                    <div class="quick-stat-value" id="quick-avg-sale">$0</div>
+                                    <div class="quick-stat-label">Avg. Sale Value</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <h3 id="report-title">Report Visualization</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="chart-container">
+                            <canvas id="report-chart"></canvas>
+                        </div>
+                        <div id="report-table"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="settings" class="content-section hidden">
+                <div class="section-header">
+                    <h2>System Settings</h2>
+                </div>
+                
+                <div class="settings-grid">
+                    <div class="card settings-card">
+                        <div class="card-header">
+                            <h3>Tax Settings</h3>
+                        </div>
+                        <div class="card-content">
+                            <form id="tax-form" class="settings-form">
+                                <div class="form-group">
+                                    <label>Tax Rate (%)</label>
+                                    <input type="number" id="tax-rate" min="0" max="100" step="0.01" required>
+                                </div>
+                                <button type="submit" class="btn-primary">Update Tax Rate</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <div class="card settings-card">
+                        <div class="card-header">
+                            <h3>Inventory Settings</h3>
+                        </div>
+                        <div class="card-content">
+                            <form id="inventory-form" class="settings-form">
+                                <div class="form-group">
+                                    <label>Default Low Stock Threshold</label>
+                                    <input type="number" id="stock-threshold" min="0" required>
+                                </div>
+                                <button type="submit" class="btn-primary">Update Threshold</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <div class="card settings-card">
+                        <div class="card-header">
+                            <h3>User Management</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="user-management">
+                                <div id="user-list" class="user-list"></div>
+                                <form id="user-role-form" class="user-role-form">
+                                    <select id="user-select" required>
+                                        <option value="">Select User</option>
+                                    </select>
+                                    <select id="role-select" required>
+                                        <option value="cashier">Cashier</option>
+                                        <option value="manager">Manager</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                    <button type="submit" class="btn-primary">Update Role</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card settings-card">
+                        <div class="card-header">
+                            <h3>Discount Management</h3>
+                        </div>
+                        <div class="card-content">
+                            <form id="discount-form" class="settings-form">
+                                <div class="form-group">
+                                    <label>Discount Name</label>
+                                    <input type="text" id="discount-name" placeholder="e.g. Summer Sale" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Discount Type</label>
+                                    <select id="discount-type" required>
+                                        <option value="percentage">Percentage</option>
+                                        <option value="fixed">Fixed Amount</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Value</label>
+                                    <input type="number" id="discount-value" placeholder="e.g. 10 or 5.00" step="0.01" required>
+                                </div>
+                                <button type="submit" class="btn-primary">Add Discount</button>
+                            </form>
+                            <div id="discounts-list" class="discounts-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Product Modal -->
+    <div id="product-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Product</h3>
+                <span class="close">&times;</span>
+            </div>
+            <form id="product-form" class="modal-form">
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" id="product-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Price ($)</label>
+                    <input type="number" id="product-price" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Stock Quantity</label>
+                    <input type="number" id="product-stock" required>
+                </div>
+                <div class="form-group">
+                    <label>Low Stock Threshold</label>
+                    <input type="number" id="product-threshold" required>
+                </div>
+                <button type="submit" class="btn-primary">Add Product</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sale Modal -->
+    <div id="sale-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>New Sale</h3>
+                <span class="close">&times;</span>
+            </div>
+            <form id="sale-form" class="modal-form">
+                <div class="form-group">
+                    <label>Product</label>
+                    <select id="sale-product" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Customer</label>
+                    <select id="sale-customer" required>
+                        <option value="">Select Customer</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Quantity</label>
+                    <input type="number" id="sale-quantity" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Discount</label>
+                    <select id="sale-discount">
+                        <option value="">No Discount</option>
+                    </select>
+                </div>
+                <div class="sale-summary">
+                    <div class="summary-row">
+                        <span>Subtotal:</span>
+                        <span id="subtotal">$0.00</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Discount:</span>
+                        <span id="discount-amount">$0.00</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Tax (<span id="tax-rate-display">10</span>%):</span>
+                        <span id="tax-amount">$0.00</span>
+                    </div>
+                    <div class="summary-row total">
+                        <span>Total:</span>
+                        <span id="total-amount">$0.00</span>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary">Complete Sale</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Expense Modal -->
+    <div id="expense-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Expense</h3>
+                <span class="close">&times;</span>
+            </div>
+            <form id="expense-form" class="modal-form">
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="expense-desc" required>
+                </div>
+                <div class="form-group">
+                    <label>Amount ($)</label>
+                    <input type="number" id="expense-amount" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
                     <select id="expense-category" required>
                         <option value="">Select Category</option>
                         <option value="rent">Rent</option>
@@ -110,114 +672,55 @@
                         <option value="maintenance">Maintenance</option>
                         <option value="other">Other</option>
                     </select>
-                    <button type="submit">Add Expense</button>
-                </form>
-                <div id="expenses-list"></div>
-            </section>
-
-            <!-- Customers Section -->
-            <section id="customers" class="hidden">
-                <h2>Customers</h2>
-                <form id="customer-form">
-                    <input type="text" id="customer-name" placeholder="Customer Name" required>
-                    <input type="email" id="customer-email" placeholder="Email">
-                    <input type="tel" id="customer-phone" placeholder="Phone">
-                    <input type="text" id="customer-address" placeholder="Address">
-                    <button type="submit">Add Customer</button>
-                </form>
-                <div id="customers-list"></div>
-            </section>
-
-            <!-- Reports Section -->
-            <section id="reports" class="hidden">
-                <h2>Reports</h2>
-                <div class="report-controls">
-                    <select id="report-type">
-                        <option value="sales">Sales Report</option>
-                        <option value="expenses">Expenses Report</option>
-                        <option value="profit-loss">Profit & Loss</option>
-                        <option value="inventory">Inventory Report</option>
-                        <option value="customers">Customer Report</option>
-                        <option value="tax">Tax Report</option>
-                    </select>
-                    <input type="date" id="report-start">
-                    <input type="date" id="report-end">
-                    <button id="generate-report">Generate Report</button>
                 </div>
-                <div class="chart-container">
-                    <canvas id="report-chart"></canvas>
-                </div>
-                <div id="report-table"></div>
-            </section>
+                <button type="submit" class="btn-primary">Add Expense</button>
+            </form>
+        </div>
+    </div>
 
-            <!-- Settings Section -->
-            <section id="settings" class="hidden">
-                <h2>Settings</h2>
-                <div class="settings-grid">
-                    <div class="settings-card">
-                        <h3>Tax Settings</h3>
-                        <form id="tax-form">
-                            <label>Tax Rate (%):</label>
-                            <input type="number" id="tax-rate" min="0" max="100" step="0.01" required>
-                            <button type="submit">Update</button>
-                        </form>
-                    </div>
-                    <div class="settings-card">
-                        <h3>Inventory Settings</h3>
-                        <form id="inventory-form">
-                            <label>Default Low Stock Threshold:</label>
-                            <input type="number" id="stock-threshold" min="0" required>
-                            <button type="submit">Update</button>
-                        </form>
-                    </div>
-                    <div class="settings-card">
-                        <h3>User Management</h3>
-                        <div id="user-list"></div>
-                        <form id="user-role-form">
-                            <select id="user-select" required></select>
-                            <select id="role-select" required>
-                                <option value="cashier">Cashier</option>
-                                <option value="manager">Manager</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                            <button type="submit">Update Role</button>
-                        </form>
-                    </div>
-                    <div class="settings-card">
-                        <h3>Discount Management</h3>
-                        <form id="discount-form">
-                            <input type="text" id="discount-name" placeholder="Discount Name" required>
-                            <select id="discount-type" required>
-                                <option value="percentage">Percentage</option>
-                                <option value="fixed">Fixed Amount</option>
-                            </select>
-                            <input type="number" id="discount-value" placeholder="Value" step="0.01" required>
-                            <button type="submit">Add Discount</button>
-                        </form>
-                        <div id="discounts-list"></div>
-                    </div>
+    <!-- Customer Modal -->
+    <div id="customer-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Customer</h3>
+                <span class="close">&times;</span>
+            </div>
+            <form id="customer-form" class="modal-form">
+                <div class="form-group">
+                    <label>Customer Name</label>
+                    <input type="text" id="customer-name" required>
                 </div>
-            </section>
-        </main>
-
-        <!-- Navigation -->
-        <nav>
-            <button data-section="dashboard">Dashboard</button>
-            <button data-section="products">Products</button>
-            <button data-section="sales">Sales</button>
-            <button data-section="expenses">Expenses</button>
-            <button data-section="customers">Customers</button>
-            <button data-section="reports">Reports</button>
-            <button data-section="settings" class="admin-only">Settings</button>
-        </nav>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="customer-email">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="tel" id="customer-phone">
+                </div>
+                <div class="form-group">
+                    <label>Address</label>
+                    <input type="text" id="customer-address">
+                </div>
+                <button type="submit" class="btn-primary">Add Customer</button>
+            </form>
+        </div>
     </div>
 
     <!-- Receipt Modal -->
     <div id="receipt-modal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <div id="receipt-content"></div>
-            <button id="print-receipt">Print Receipt</button>
+        <div class="modal-content receipt-content">
+            <div class="modal-header">
+                <h3>Sales Receipt</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div id="receipt-content" class="receipt-body"></div>
+            <div class="receipt-actions">
+                <button id="print-receipt" class="btn-primary">
+                    <i class="fas fa-print"></i>
+                    Print Receipt
+                </button>
+            </div>
         </div>
     </div>
 
